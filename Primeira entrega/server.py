@@ -8,3 +8,5 @@ while True:
     msg, cliente = udp.recvfrom(1024)
     print(cliente, msg)
 udp.close()
+
+#BILASS
