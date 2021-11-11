@@ -4,7 +4,6 @@ serverAddressPort = ("127.0.0.1", 20001)
 bufferSize = 1024
 
 UDPClientSocket = socket(AF_INET, SOCK_DGRAM)
-UDPClientSocket.bind(serverAddressPort)
 
 file = open("teste.txt","rb") 
 data = file.read(bufferSize)
@@ -19,9 +18,8 @@ while data:
 file.close()
 file = open("recebido.txt", "wb")
 
-UDPClientSocket.bind(("127.0.0.1", 20000))
-
 data,addr = UDPClientSocket.recvfrom(bufferSize)
+print("Recebendo...")
 
 try:
     while data:
