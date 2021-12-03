@@ -2,38 +2,22 @@ from socket import *
 from rdt import *
 
 
-bufferSize = 1024
-clientAddressPort = ("127.0.0.1", 20001)
+RDTSocket = RDT(1)
 
-UDPServerSocket = socket(AF_INET, SOCK_DGRAM)
-UDPServerSocket.bind(clientAddressPort)
+data = RDTSocket.receive()
 
-print("O servidor UDP está pronto para receber")
-
-
-data,addr = UDPServerSocket.recvfrom(bufferSize)
-print ("Received File:",data.strip())
 file = open("recebido.txt",'wb')
-
-
-try:
-    while data:
-        file.write(data)
-        UDPServerSocket.settimeout(2)
-        data,addr = UDPServerSocket.recvfrom(bufferSize)
-except timeout:
-    file.close()
-    print ("File Downloaded")
+file.write(data)
+file.close()
 
 file = open("recebido.txt","rb") 
-data = file.read(bufferSize)
+data = file.read(RDTSocket.bufferSize)
 
 while data:
-    if(UDPServerSocket.sendto(data, addr)):
-        print ("sending ...")
-        data = file.read(bufferSize)
+    RDTSocket.send_pkg(data)
+    data = file.read(RDTSocket.bufferSize)
 
-UDPServerSocket.close()
+RDTSocket.close_connection()
 file.close()
 
 

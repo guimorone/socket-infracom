@@ -4,28 +4,32 @@ import time
 
 class RDT:
 
-    def __init__(self, addressPort = ("127.0.0.1", 20001), bufferSize = 1024, isServer = 0):
+    def __init__(self, isServer = 0, addressPort = ("127.0.0.1", 20001), bufferSize = 1024):
         self.sender_addr = 0
         self.seq_num = 0
         self.addressPort =  addressPort
         self.bufferSize = bufferSize
         self.UDPSocket = socket(AF_INET, SOCK_DGRAM)
-        if(isServer):
+        self.isServer = isServer
+        if isServer:
             self.UDPSocket.bind(self.addressPort)
             self.UDPSocket.settimeout(2.0)
             print("Server running")
         else:
             print("Client running")
     
-    #def send(self, data):
-    #        self.send_pkg(data)
+    def send(self, data):
+        if self.isServer:
+            self.UDPSocket.sendto(data, self.sender_addr)
+        else:
+            self.UDPSocket.sendto(data, self.addressPort)
 
     def send_pkg(self, data):
         data = self.create_header(data)
         ack = False
 
         while not ack:
-            self.UDPSocket.sendto(data, self.addressPort)
+            self.send(data)
 
             try:
                 data, self.sender_addr = self.rcv_pkg(self.bufferSize)
@@ -35,41 +39,45 @@ class RDT:
                 ack = self.rcv_ack(data)
 
     def receive(self):
+        self.UDPSocket.settimeout(20.0)
         data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-        ack, data = self.rcv_pkg(data)
+        self.UDPSocket.settimeout(2.0)
+        data = self.rcv_pkg(data)
 
-        if ack == True:
-            self.send_ack(1)
-        else:
-            self.send_ack(0)
-
-        buffer = str(data)
+        if data.decode() != "":
+            buffer = data.decode()
         
         while data:
             data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-            buffer += str(data)
+            buffer += data.decode()
+
+        return buffer.encode()
 
     def send_ack(self, ack):
-        if ack == True:
+        if ack:
             data = self.create_header("ACK".encode())
         else:
             data = self.create_header("NACK".encode())
+        self.send(data)
 
-        self.send_pkg(data)
 
     def rcv_pkg(self, data):
+        data = eval(data.decode())
         seq_num = data['seq']
         checksum = data['checksum']
         payload = data['payload']
 
         if self.checksum_(checksum, payload) and seq_num == self.seq_num:
+            self.send_ack(1)
             self.seq_num = 1 - self.seq_num
-            return (True, payload)
+            return payload
         else:
-            return (False, payload)
+            self.send_ack(0)
+            return ""
     
 
     def rcv_ack(self, data):
+        data = eval(data.decode())
         seq_num = data['seq']
         checksum = data['checksum']
         payload = data['payload']
@@ -92,11 +100,15 @@ class RDT:
 
         chcksum = checksum(data)
 
-        return {
+        return str({
             'seq': self.seq_num,
             'checksum': chcksum,
             'payload' : data
-        }
+        }).encode()
+
+    def close_connection(self):
+        print("Closing socket")
+        self.UDPSocket.close()
 
 
 
