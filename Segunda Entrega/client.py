@@ -14,7 +14,7 @@ while data:
 
 
 file.close()
-file = open("recebido.txt", "wb")
+file = open("recebidoClient.txt", "wb")
 
 data = RDTSocket.receive()
 

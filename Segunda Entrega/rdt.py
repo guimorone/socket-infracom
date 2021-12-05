@@ -20,44 +20,48 @@ class RDT:
     
     def send(self, data):
         if self.isServer:
+            print("Sending to client")
             self.UDPSocket.sendto(data, self.sender_addr)
         else:
+            print("Sending to server")
             self.UDPSocket.sendto(data, self.addressPort)
 
     def send_pkg(self, data):
-        data = self.create_header(data)
+        data = self.create_header(data.decode())
         ack = False
 
         while not ack:
             self.send(data)
 
             try:
-                data, self.sender_addr = self.rcv_pkg(self.bufferSize)
+                data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
             except socket.timeout:
                 print("Did not receive ACK. Sending again.")
             else:
                 ack = self.rcv_ack(data)
 
     def receive(self):
-        self.UDPSocket.settimeout(20.0)
+        #self.UDPSocket.settimeout(20.0)
+        print("Receveing package")
         data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
         self.UDPSocket.settimeout(2.0)
         data = self.rcv_pkg(data)
 
-        if data.decode() != "":
-            buffer = data.decode()
+        if data != "":
+            buffer = data
         
-        while data:
-            data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-            buffer += data.decode()
+        #while data:
+        #    data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
+        #    buffer += data.decode()
 
+        print("Received")
         return buffer.encode()
 
     def send_ack(self, ack):
         if ack:
-            data = self.create_header("ACK".encode())
+            data = self.create_header("ACK")
         else:
-            data = self.create_header("NACK".encode())
+            data = self.create_header("NACK")
         self.send(data)
 
 
@@ -82,7 +86,7 @@ class RDT:
         checksum = data['checksum']
         payload = data['payload']
 
-        if self.checksum_(checksum, payload) and seq_num == self.seq_num and payload.decode() == "ACK":
+        if self.checksum_(checksum, payload) and seq_num == self.seq_num and payload == "ACK":
             self.seq_num = 1 - self.seq_num
             return True
         else:
