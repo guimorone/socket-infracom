@@ -41,10 +41,9 @@ class RDT:
                 ack = self.rcv_ack(data)
 
     def receive(self):
-        #self.UDPSocket.settimeout(20.0)
         print("Receveing package")
+        self.UDPSocket.settimeout(20.0) # tempo de espera por pacote
         data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-        self.UDPSocket.settimeout(2.0)
         data = self.rcv_pkg(data)
 
         if data != "":
