@@ -11,7 +11,7 @@ class RDTServer:
         self.bufferSize = bufferSize
         self.UDPSocket = socket(AF_INET, SOCK_DGRAM)
         self.UDPSocket.bind(self.addressPort)
-        #self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(2.0)
         self.lista_usuarios = []
         self.lista_seq = {}
         print("Server running")
@@ -72,8 +72,10 @@ class RDTServer:
 
 
     def receive(self):
+        self.UDPSocket.settimeout(None)
         #print("Receveing package")
         data, sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
+        self.UDPSocket.settimeout(2.0)
         #print("pkg received")
         data = self.rcv_pkg(data, sender_addr)
 
@@ -191,7 +193,7 @@ class RDTClient:
         self.send_pkg(data.encode())
     
     def send(self, data):
-        print("Sending to server")
+        #print("Sending to server")
         self.UDPSocket.sendto(data, self.addressPort)
 
     def send_pkg(self, data):
@@ -204,37 +206,41 @@ class RDTClient:
             try:
                 data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
             except timeout:
-                print("Did not receive ACK. Sending again.")
+                #print("Did not receive ACK. Sending again.")
+                z = 1
             else:
                 ack = self.rcv_ack(data)
 
     def thread_input(self):
-        print("Thread input started")
+        #print("Thread input started")
         while(1):
             entrada = input()
-            print("Entrada: ", entrada)
+            print("\033[A                             \033[A")
+            #print("Entrada: ", entrada)
             self.lock.acquire()
-            print("Thread input locked\nEnviando para o servidor: ")
+            #print("Thread input locked\nEnviando para o servidor: ")
             self.send_pkg(entrada.encode())
             self.lock.release()
-            print("Thread input unlocked")
+            #print("Thread input unlocked")
             
 
     def thread_rcv(self):
-        print("Thread rcv started")
+        #print("Thread rcv started")
         self.UDPSocket.settimeout(2.0)
         while(1):
             try:
                 self.lock.acquire()
-                print("Thread rcv locked")
+                #print("Thread rcv locked")
                 data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
             except timeout:
-                print("Did not receive input for 2 sec, giving space to send msg")
+                #print("Did not receive input for 2 sec, giving space to send msg")
+                z = 1
             else:
                 data = self.rcv_pkg(data)
                 print(data)
             self.lock.release()
-            print("Thread rcv unlocked")
+            time.sleep(1.0)
+            #print("Thread rcv unlocked")
             
             
             
