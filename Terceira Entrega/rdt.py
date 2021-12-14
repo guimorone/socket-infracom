@@ -1,5 +1,6 @@
 from socket import *
 from utils import checksum
+import threading
 import time
 
 
@@ -18,7 +19,24 @@ class RDTServer:
 
     def run(self):
         while(1):
-            self.receive()
+            print("Esperando nova msg")
+            data, sender_addr = self.receive()
+            print("Mensagem recebida")
+            if data != "" :
+                self.print_message(data, sender_addr)
+            
+    def print_message(self, data, sender_addr):
+        nome = ""
+        for x in self.lista_usuarios:
+            if x[0] == sender_addr:
+                nome = x[1]
+
+        data = nome + ": " + data
+        self.broadcast_message(data)
+
+    def broadcast_message(self, data):
+        for x in self.lista_usuarios:
+            self.send_pkg(data, x[0])
     
     def send(self, data, sender_addr):
         #print("Sending to client")
@@ -34,7 +52,7 @@ class RDTServer:
             self.send(data, sender_addr)
             try:
                 data, rcv_addr = self.UDPSocket.recvfrom(self.bufferSize)
-            except socket.timeout:
+            except timeout:
                 print("Did not receive ACK. Sending again.")
             else:
                 ack = self.rcv_ack(data, sender_addr)
@@ -60,7 +78,7 @@ class RDTServer:
         data = self.rcv_pkg(data, sender_addr)
 
         #print("Received")
-        return data.encode()
+        return data, sender_addr
 
     def send_ack(self, ack, sender_addr):
         if ack:
@@ -79,22 +97,25 @@ class RDTServer:
         payload = data['payload']
 
         print(data)
-        x, y = payload.split()
-
-        if(x == "new_connection"):
-            #print("new_connection")
-            if self.checksum_(checksum, payload):
-                self.new_connection(y, sender_addr)
-                self.send_ack(1, sender_addr)
-                self.lista_seq.update({sender_addr: 1})
-                self.broadcast_new_user(y)
-                return payload
-            else:
-                self.send_ack(0, sender_addr)
-                return ""
-            
+        try:
+            x, y = payload.split()
+        except:
+            print("Not a new connection")
+        else:
+            if(x == "new_connection"):
+                print("new_connection")
+                if self.checksum_(checksum, payload):
+                    self.new_connection(y, sender_addr)
+                    self.send_ack(1, sender_addr)
+                    self.lista_seq.update({sender_addr: 1})
+                    self.broadcast_new_user(y)
+                    return ""
+                else:
+                    self.send_ack(0, sender_addr)
+                    return ""
 
         if(self.lista_seq.get(sender_addr) != None):
+            print(self.lista_seq)
             seq = self.lista_seq.get(sender_addr)
         else:
             self.send_ack(0, sender_addr)
@@ -102,7 +123,10 @@ class RDTServer:
 
         if self.checksum_(checksum, payload) and seq_num == seq:
             self.send_ack(1, sender_addr)
-            self.lista_seq.update({sender_addr: 1-seq})
+            print(self.lista_seq)
+            self.lista_seq.pop(sender_addr)
+            self.lista_seq.update({sender_addr: (1-seq)})
+            print(self.lista_seq)
             return payload
         else:
             self.send_ack(0, sender_addr)
@@ -161,11 +185,13 @@ class RDTClient:
         self.UDPSocket.settimeout(2.0)
         print("Entre com seu nome:")
         self.nome = input()
+        print("-------- CHAT --------")
+        self.lock = threading.Lock()
         data = "new_connection " + self.nome
         self.send_pkg(data.encode())
     
     def send(self, data):
-        #print("Sending to server")
+        print("Sending to server")
         self.UDPSocket.sendto(data, self.addressPort)
 
     def send_pkg(self, data):
@@ -177,20 +203,58 @@ class RDTClient:
 
             try:
                 data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-            except socket.timeout:
+            except timeout:
                 print("Did not receive ACK. Sending again.")
             else:
                 ack = self.rcv_ack(data)
 
-    def always_rcv(self):
-        #print("Receveing package")
-        self.UDPSocket.settimeout(None)
-        data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-        self.UDPSocket.settimeout(2.0)
-        data = self.rcv_pkg(data)
+    def thread_input(self):
+        print("Thread input started")
+        while(1):
+            entrada = input()
+            print("Entrada: ", entrada)
+            self.lock.acquire()
+            print("Thread input locked\nEnviando para o servidor: ")
+            self.send_pkg(entrada.encode())
+            self.lock.release()
+            print("Thread input unlocked")
+            
 
-        #print("Received")
-        return data.encode()
+    def thread_rcv(self):
+        print("Thread rcv started")
+        self.UDPSocket.settimeout(2.0)
+        while(1):
+            try:
+                self.lock.acquire()
+                print("Thread rcv locked")
+                data, self.sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
+            except timeout:
+                print("Did not receive input for 2 sec, giving space to send msg")
+            else:
+                data = self.rcv_pkg(data)
+                print(data)
+            self.lock.release()
+            print("Thread rcv unlocked")
+            
+            
+            
+    def run(self):
+        entrada = ""
+        th1 = threading.Thread(target=self.thread_input)
+        th2 = threading.Thread(target=self.thread_rcv)
+        th1.start()
+        th2.start()
+        ##while(1):
+        ##    if(not th1.is_alive()):
+        ##        print("Thread diz: ", entrada)
+        ##        self.send_pkg(entrada)
+        ##        entrada = ""
+        ##        entrada = th1.start()
+            
+
+            #print("Received")
+
+        #return data.encode()
 
     def receive(self):
         #print("Receveing package")
