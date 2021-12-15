@@ -26,13 +26,36 @@ class RDTServer:
                 self.print_message(data, sender_addr)
             
     def print_message(self, data, sender_addr):
-        nome = ""
-        for x in self.lista_usuarios:
-            if x[0] == sender_addr:
-                nome = x[1]
-
-        data = nome + ": " + data
-        self.broadcast_message(data)
+        word = data.strip() # tirar espaço no começo e fim
+        # hi, bye, list
+        if word == 'hi':
+            # meu nome eh <nome_de_usuario>
+            nome = ""
+            for x in self.lista_usuarios:
+                if x[0] == sender_addr:
+                    nome = x[1]
+            data = nome + ': meu nome é ' + nome
+        elif word == 'bye':
+            # cliente sai do chat
+            for x in self.lista_usuarios:
+                if x[0] == sender_addr:
+                    data = x[1] + ' saiu do chat'
+                    self.lista_usuarios.remove((x[0], x[1]))
+                    self.lista_seq.pop(x[0])
+                    # desconectar
+        elif word == 'list':
+            # listar as pessoas presentes no chat
+            data = 'Pessoas no server:\n'
+            for x in self.lista_usuarios:
+                data += x[1] + '\n'
+        else:
+            nome = ""
+            for x in self.lista_usuarios:
+                if x[0] == sender_addr:
+                    nome = x[1]
+            data = nome + ": " + data
+            
+        self.broadcast_message(data)     
 
     def broadcast_message(self, data):
         for x in self.lista_usuarios:
@@ -70,7 +93,6 @@ class RDTServer:
             #print(x)
             self.send_pkg(data, x[0])
 
-
     def receive(self):
         self.UDPSocket.settimeout(None)
         #print("Receveing package")
@@ -102,7 +124,7 @@ class RDTServer:
         try:
             x, y = payload.split()
         except:
-            print("Not a new connection")
+            print("Not a new connection")           
         else:
             if(x == "new_connection"):
                 print("new_connection")
@@ -179,6 +201,7 @@ class RDTClient:
 
     def __init__(self, isServer = 0, addressPort = ("127.0.0.1", 20001), bufferSize = 1024):
         self.sender_addr = 0
+        self.endFlag = False
         self.addressPort =  addressPort
         self.bufferSize = bufferSize
         self.UDPSocket = socket(AF_INET, SOCK_DGRAM)
@@ -221,6 +244,9 @@ class RDTClient:
             #print("Thread input locked\nEnviando para o servidor: ")
             self.send_pkg(entrada.encode())
             self.lock.release()
+            if entrada.strip() == 'bye':
+                self.endFlag = True
+                break
             #print("Thread input unlocked")
             
 
@@ -228,6 +254,8 @@ class RDTClient:
         #print("Thread rcv started")
         self.UDPSocket.settimeout(2.0)
         while(1):
+            if self.endFlag:
+                break
             try:
                 self.lock.acquire()
                 #print("Thread rcv locked")
@@ -250,17 +278,13 @@ class RDTClient:
         th2 = threading.Thread(target=self.thread_rcv)
         th1.start()
         th2.start()
-        ##while(1):
-        ##    if(not th1.is_alive()):
-        ##        print("Thread diz: ", entrada)
-        ##        self.send_pkg(entrada)
-        ##        entrada = ""
-        ##        entrada = th1.start()
-            
+        th1.join()
+        th2.join()
+        while True:
+            if self.endFlag:
+                self.close_connection()
+                break
 
-            #print("Received")
-
-        #return data.encode()
 
     def receive(self):
         #print("Receveing package")
@@ -334,10 +358,3 @@ class RDTClient:
     def close_connection(self):
         print("Closing socket")
         self.UDPSocket.close()
-
-
-
-
-    
-
-
