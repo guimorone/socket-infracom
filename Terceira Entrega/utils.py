@@ -18,6 +18,8 @@
 #        cksum = cksum ^ 0xffff
 #        return cksum
 
+import datetime
+
 def checksum(data):
     sum = 0
     for i in range(0,len(data),2):
@@ -35,3 +37,6 @@ def checksum(data):
     sum = ~sum
 
     return sum & 0xFFFF
+
+def getTime():
+    return str(datetime.datetime.now().strftime('%X'))

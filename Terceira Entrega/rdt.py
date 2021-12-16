@@ -1,8 +1,8 @@
 from socket import *
 from utils import checksum
+from utils import getTime
 import threading
 import time
-
 
 class RDTServer:
     def __init__(self, addressPort = ("127.0.0.1", 20001), bufferSize = 1024):
@@ -27,25 +27,18 @@ class RDTServer:
             
     def print_message(self, data, sender_addr):
         word = data.strip() # tirar espaço no começo e fim
-        # hi, bye, list
-        if word == 'hi':
-            # meu nome eh <nome_de_usuario>
-            nome = ""
-            for x in self.lista_usuarios:
-                if x[0] == sender_addr:
-                    nome = x[1]
-            data = nome + ': meu nome é ' + nome
-        elif word == 'bye':
+        if word == 'bye':
             # cliente sai do chat
             for x in self.lista_usuarios:
                 if x[0] == sender_addr:
-                    data = x[1] + ' saiu do chat'
+                    data = getTime() + ' -> ' + x[1] + ': bye\n'
+                    data += x[1] + ' saiu do chat'
                     self.lista_usuarios.remove((x[0], x[1]))
                     self.lista_seq.pop(x[0])
                     # desconectar
         elif word == 'list':
             # listar as pessoas presentes no chat
-            data = 'Pessoas no server:\n'
+            data = 'Pessoas no chat:\n'
             for x in self.lista_usuarios:
                 data += x[1] + '\n'
         else:
@@ -53,7 +46,7 @@ class RDTServer:
             for x in self.lista_usuarios:
                 if x[0] == sender_addr:
                     nome = x[1]
-            data = nome + ": " + data
+            data = getTime() + ' -> ' + nome + ": " + data
             
         self.broadcast_message(data)     
 
@@ -208,8 +201,13 @@ class RDTClient:
         self.isServer = isServer
         self.seq_num = 0
         self.UDPSocket.settimeout(2.0)
-        print("Entre com seu nome:")
-        self.nome = input()
+        print("Digite alguma coisa:")
+        aux = input().split('hi, meu nome eh')
+        # hi, meu nome eh <nome do usuario>
+        while len(aux[0]):
+            # loop até botar o comando
+            aux = input().split('hi, meu nome eh')
+        self.nome = aux[1]
         print("-------- CHAT --------")
         self.lock = threading.Lock()
         data = "new_connection " + self.nome
