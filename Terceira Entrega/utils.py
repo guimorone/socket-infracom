@@ -1,22 +1,4 @@
-#def checksum(msg):
-#        cksum = 0
-#
-#        array = bytearray(msg)[::-1]
-#        lenght = len(array)
-#
-#        for i in range(lenght):
-#            if i % 2:
-#                continue 
-#            
-#            cksum += (array[i] << 8)
-#            if i + 1 < lenght:
-#                cksum += array[i+1]
-#
-#        while cksum >> 16:
-#            cksum = (cksum >> 16) + (cksum & 0xffff)
-#        
-#        cksum = cksum ^ 0xffff
-#        return cksum
+
 
 import datetime
 

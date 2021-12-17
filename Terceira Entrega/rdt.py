@@ -1,6 +1,5 @@
 from socket import *
-from utils import checksum
-from utils import getTime
+from utils import checksum, getTime
 import threading
 import time
 
