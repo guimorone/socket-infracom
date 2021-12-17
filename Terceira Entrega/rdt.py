@@ -6,12 +6,13 @@ import time
 
 class RDTServer:
     def __init__(self, addressPort = ("127.0.0.1", 20001), bufferSize = 1024):
+        self.timeout = 0.1
         self.sender_addr = 0
         self.addressPort =  addressPort
         self.bufferSize = bufferSize
         self.UDPSocket = socket(AF_INET, SOCK_DGRAM)
         self.UDPSocket.bind(self.addressPort)
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         self.lista_usuarios = []
         self.lista_seq = {}
         print("Server running")
@@ -62,7 +63,7 @@ class RDTServer:
         data = self.create_header(data, sender_addr)
         ack = False
 
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         rcv_addr = 0
         while not ack:
             self.send(data, sender_addr)
@@ -90,7 +91,7 @@ class RDTServer:
         self.UDPSocket.settimeout(None)
         #print("Receveing package")
         data, sender_addr = self.UDPSocket.recvfrom(self.bufferSize)
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         #print("pkg received")
         data = self.rcv_pkg(data, sender_addr)
 
@@ -140,10 +141,10 @@ class RDTServer:
 
         if self.checksum_(checksum, payload) and seq_num == seq:
             self.send_ack(1, sender_addr)
-            print(self.lista_seq)
+            #print(self.lista_seq)
             self.lista_seq.pop(sender_addr)
             self.lista_seq.update({sender_addr: (1-seq)})
-            print(self.lista_seq)
+            #print(self.lista_seq)
             return payload
         else:
             self.send_ack(0, sender_addr)
@@ -194,24 +195,26 @@ class RDTClient:
 
     def __init__(self, isServer = 0, addressPort = ("127.0.0.1", 20001), bufferSize = 1024):
         self.sender_addr = 0
+        self.timeout = 0.1
         self.endFlag = False
         self.addressPort =  addressPort
         self.bufferSize = bufferSize
         self.UDPSocket = socket(AF_INET, SOCK_DGRAM)
         self.isServer = isServer
         self.seq_num = 0
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         print("Digite alguma coisa:")
         aux = input().split('hi, meu nome eh')
         # hi, meu nome eh <nome do usuario>
         while len(aux[0]):
             # loop até botar o comando
             aux = input().split('hi, meu nome eh')
-        self.nome = aux[1]
+        self.nome = aux[1].strip()
         print("-------- CHAT --------")
         self.lock = threading.Lock()
         data = "new_connection " + self.nome
         self.send_pkg(data.encode())
+        self.run()
     
     def send(self, data):
         #print("Sending to server")
@@ -220,7 +223,7 @@ class RDTClient:
     def send_pkg(self, data):
         data = self.create_header(data.decode())
         ack = False
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         while not ack:
             self.send(data)
 
@@ -250,7 +253,7 @@ class RDTClient:
 
     def thread_rcv(self):
         #print("Thread rcv started")
-        self.UDPSocket.settimeout(2.0)
+        self.UDPSocket.settimeout(self.timeout)
         while(1):
             if self.endFlag:
                 break
@@ -265,7 +268,7 @@ class RDTClient:
                 data = self.rcv_pkg(data)
                 print(data)
             self.lock.release()
-            time.sleep(1.0)
+            time.sleep(0.1)
             #print("Thread rcv unlocked")
             
             
